@@ -36,7 +36,7 @@ router.get("/", async (req, res) => {
   const status = req.query.status ?? "all";
   const search = req.query.search ?? "";
 
-  const startPage = (page - 1) * limit;
+  const startTask = (page - 1) * limit;
 
   try {
     const query = { title: RegExp(search, "i") };
@@ -47,7 +47,7 @@ router.get("/", async (req, res) => {
     }
     const tasks = await Task.find(query)
       .limit(limit)
-      .skip(startPage)
+      .skip(startTask)
       .sort("title");
 
     const all = await Task.countDocuments();
@@ -70,40 +70,63 @@ router.get("/", async (req, res) => {
 });
 
 router.post("/", async (req, res) => {
-  if (req.body.title && req.body.completed !== undefined) {
-    const task = new Task({
-      title: req.body.title,
-      completed: req.body.completed,
-    });
-    try {
-      task.save();
+  try {
+    const findTask = await Task.findOne({ title: req.body.title });
+    if (findTask) {
+      res.status(402).json({
+        success: false,
+        body: null,
+        message: "This title is already exists!",
+        code: 402,
+      });
+      return;
+    }
+    if (req.body.title && req.body.completed !== undefined) {
+      const task = new Task({
+        title: req.body.title,
+        completed: req.body.completed,
+      });
+      await task.save();
       res.status(201).json({
         success: true,
         body: task,
         message: "New Task Created Successfully!",
         code: 201,
       });
-    } catch (e) {
-      res.json({
+    } else {
+      res.status(400).json({
         success: false,
         body: null,
-        message: e.message,
-        code: 500,
+        message: "Please Enter title and Completed Status!",
+        code: 404,
       });
     }
-  } else {
-    res.status(400).json({
+  } catch (e) {
+    res.json({
       success: false,
       body: null,
-      message: "Please Enter title and Completed Status!",
-      code: 404,
+      message: e.message,
+      code: 500,
     });
   }
 });
 
-router.put("/id", async (req, res) => {
-  if (req.body.title && req.body.completed !== undefined) {
-    try {
+router.put("/:id", async (req, res) => {
+  const findTask = await Task.findOne({
+    title: req.body.title,
+  });
+  const id = req.params.id;
+  if (findTask && findTask._id.toString() != id) {
+    res.status(400).json({
+      success: false,
+      body: null,
+      message: "This title is already exists!",
+      code: 404,
+    });
+    return;
+  }
+  try {
+    if (req.body.title && req.body.completed !== undefined) {
       const task = await Task.findByIdAndUpdate(
         req.params.id,
         {
@@ -128,51 +151,49 @@ router.put("/id", async (req, res) => {
           code: 404,
         });
       }
-    } catch (e) {
-      res.status(500).json({
+    } else {
+      res.status(400).json({
         success: false,
         body: null,
-        message: e.message,
-        code: 500,
+        message: "Please Enter new title or Completed Status!",
+        code: 404,
       });
     }
-  } else {
-    res.status(400).json({
+  } catch (e) {
+    res.status(500).json({
       success: false,
       body: null,
-      message: "Please Enter new title or Completed Status!",
-      code: 404,
+      message: e.message,
+      code: 500,
     });
   }
 });
 
 router.delete("/:id", async (req, res) => {
-  if (req.params.id) {
-    try {
-      const task = await Task.findByIdAndDelete(req.params.id);
-      if (task) {
-        res.json({
-          success: true,
-          body: null,
-          message: "Task Deleted Successfully!",
-          code: 200,
-        });
-      } else {
-        res.status(404).json({
-          success: false,
-          body: null,
-          message: "Not Found",
-          code: 404,
-        });
-      }
-    } catch (e) {
-      res.status(500).json({
+  try {
+    const task = await Task.findByIdAndDelete(req.params.id);
+    if (task) {
+      res.json({
+        success: true,
+        body: null,
+        message: "Task Deleted Successfully!",
+        code: 200,
+      });
+    } else {
+      res.status(404).json({
         success: false,
         body: null,
-        message: e.message,
-        code: 500,
+        message: "Not Found",
+        code: 404,
       });
     }
+  } catch (e) {
+    res.status(500).json({
+      success: false,
+      body: null,
+      message: e.message,
+      code: 500,
+    });
   }
 });
 

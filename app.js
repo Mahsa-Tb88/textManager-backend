@@ -6,18 +6,21 @@ const app = express();
 app.use(express.json());
 
 app.use((req, res, next) => {
-  console.clear();
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Headers", "*");
+  res.setHeader("Access-Control-Allow-Methods", "*");
   next();
 });
+
+app.use("/tasks", tasksRoutes);
+
 try {
-  await mongoose.connect("mongodb://127.0.0.1:27017/test");
+  await mongoose.connect("mongodb://127.0.0.1:27017/task");
   console.log("Connected to Database");
 
   app.listen(3000, () => {
-    console.log("Server is running on http://localhost:3000");
+    console.log("Server is running on http://127.0.0.1:27017");
   });
 } catch (e) {
   console.log(e.message);
 }
-
-app.use("/tasks", tasksRoutes);
